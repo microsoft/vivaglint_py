@@ -40,6 +40,70 @@ survey_enriched = join_attributes(survey, "employee_attributes.csv")
 # Attribute column names are stored in survey.metadata["attribute_cols"]
 ```
 
+### 1b. Import Directly from the Viva Glint API
+
+Instead of exporting a CSV by hand, you can pull survey data straight from Viva
+Glint through the Microsoft Graph beta API. This mirrors the R package's
+`glint_setup()` / `read_glint_survey_api()`. Credentials and options are read
+from environment variables (the Python analogue of R's `.Renviron`); explicit
+arguments always win.
+
+```python
+from vivaglint import glint_setup, read_glint_survey_api
+
+# Configure credentials once per process (or set the env vars directly).
+# R: glint_setup(tenant_id = ..., client_id = ..., ...)
+glint_setup(
+    tenant_id="your-tenant-id",
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    experience_name="your-experience-name",   # e.g. "contoso@demo"
+    # save_to_env_file=True,   # optionally append KEY=value lines to ./.env
+)
+
+# Cycle mode — a single survey cycle (needs survey_uuid + cycle_id):
+cycle = read_glint_survey_api(survey_uuid="your-survey-uuid", cycle_id="your-cycle-id")
+
+# Survey mode — every cycle of one survey, returned as a dict keyed by filename:
+all_cycles = read_glint_survey_api(mode="survey", survey_uuid="your-survey-uuid")
+
+# Date-range mode — every survey active in the window (dates optional):
+recent = read_glint_survey_api(mode="daterange",
+                               start_date="2025-01-01", end_date="2025-03-31")
+
+# Persist the raw export zip alongside the parsed data:
+recent = read_glint_survey_api(mode="daterange", save_zip_to="./glint-archive")
+
+# Or skip parsing entirely and just keep the zip (save_zip_to required):
+zip_path = read_glint_survey_api(mode="daterange", parse=False,
+                                 save_zip_to="./glint-archive")
+```
+
+**Environment variables** (all optional except the four credentials):
+
+| Variable | Purpose |
+|---|---|
+| `GLINT_TENANT_ID` | Entra tenant ID |
+| `GLINT_CLIENT_ID` | App registration (client) ID |
+| `GLINT_CLIENT_SECRET` | App registration client secret |
+| `GLINT_EXPERIENCE_NAME` | Experience name (e.g. `name@tenant`) |
+| `GLINT_MODE` | `cycle` / `survey` / `daterange` |
+| `GLINT_SURVEY_UUID` | Survey UUID (cycle/survey modes) |
+| `GLINT_CYCLE_ID` | Cycle ID (cycle mode) |
+| `GLINT_START_DATE` / `GLINT_END_DATE` | Export window (ISO 8601) |
+| `GLINT_SAVE_ZIP_TO` | Path to persist the raw export zip |
+
+**Return value** — mirrors the R contract:
+
+- Single-CSV export (typical for `cycle` mode) → a single `GlintSurvey`.
+- Multi-CSV export (typical for `survey` / `daterange`) → a `dict` keyed by
+  source filename; entries that fit the schema are `GlintSurvey` objects, others
+  are raw DataFrames (with a warning).
+- `parse=False` → the path (str) the raw zip was written to.
+
+> All survey data flows only between your process and Microsoft Graph; parsing
+> and analysis happen locally.
+
 ### 2. Reshape Data
 
 ```python
@@ -235,7 +299,7 @@ sphinx-build -b html man man/_build/html
 | Error | Cause | Fix |
 |---|---|---|
 | `FileNotFoundError: File not found: 'export.csv'` | Path does not exist | Check the file path |
-| `ValueError: Missing required standard column(s): 'Employee ID'` | `emp_id_col` does not match | Pass the exact column name from your CSV |
+| `ValueError: Missing required standard column: 'Employee ID'` | `emp_id_col` does not match | Pass the exact column name from your CSV |
 | `ValueError: No question columns found` | CSV has only standard columns | Confirm you are using a complete Glint export |
 | `ValueError: Incomplete question column sets` | A question is missing one of its 4 columns | Check the CSV for truncated columns |
 | `ValueError: scale_points must be an integer between 2 and 11` | Invalid scale | Pass the number of points on your rating scale (e.g. `5`) |

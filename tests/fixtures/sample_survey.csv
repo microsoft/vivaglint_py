@@ -1,0 +1,13 @@
+First Name,Last Name,Email,Status,Employee ID,Manager ID,Survey Cycle Completion Date,Survey Cycle Sent Date,My work is meaningful,My work is meaningful_COMMENT,My work is meaningful_COMMENT_TOPICS,My work is meaningful_SENSITIVE_COMMENT_FLAG,I feel valued,I feel valued_COMMENT,I feel valued_COMMENT_TOPICS,I feel valued_SENSITIVE_COMMENT_FLAG,I have work-life balance,I have work-life balance_COMMENT,I have work-life balance_COMMENT_TOPICS,I have work-life balance_SENSITIVE_COMMENT_FLAG
+Alex,Anderson,alex@example.com,ACTIVE,E1,E9,26-03-2024 09:34,20-03-2024 08:00,4,Great work culture,Culture,,3,,,,4,Love the flexibility here,Flexibility,
+Bri,Brooks,bri@example.com,ACTIVE,E2,E9,26-03-2024 09:34,20-03-2024 08:00,3,,,,4,Thanks for the recognition,Recognition,,3,,,
+Casey,Carter,casey@example.com,ACTIVE,E3,E9,26-03-2024 09:34,20-03-2024 08:00,4,Room to grow,Growth,,2,,,,2,Need more flexability in hours,Flexibility,
+Drew,Davis,drew@example.com,ACTIVE,E4,E10,26-03-2024 09:34,20-03-2024 08:00,2,,,,3,Manager is supportive,Manager,,4,,,
+Evan,Edwards,evan@example.com,ACTIVE,E5,E10,26-03-2024 09:34,20-03-2024 08:00,3,Good team spirit,Team,,4,,,,3,Flexible schedule is great,Flexibility,
+Fran,Foster,fran@example.com,ACTIVE,E6,E10,26-03-2024 09:34,20-03-2024 08:00,4,,,,3,,,,4,,,
+Gale,Green,gale@example.com,ACTIVE,E7,E11,26-03-2024 09:34,20-03-2024 08:00,5,Meaningful projects,Growth,,5,Feel appreciated,Recognition,,5,,,
+Harper,Hughes,harper@example.com,ACTIVE,E8,E11,26-03-2024 09:34,20-03-2024 08:00,2,Unclear priorities,Culture,,2,,,,1,No flexibility at all,Flexibility,
+Ira,Ingram,ira@example.com,ACTIVE,E9,,26-03-2024 09:34,20-03-2024 08:00,3,,,,4,,,,3,,,
+Jae,Jones,jae@example.com,ACTIVE,E10,,26-03-2024 09:34,20-03-2024 08:00,4,Solid direction,Manager,,3,,,,4,,,
+Kai,King,kai@example.com,ACTIVE,E11,,26-03-2024 09:34,20-03-2024 08:00,4,,,,4,,,,3,,,
+Lee,Lewis,lee@example.com,ACTIVE,E12,E9,26-03-2024 09:34,20-03-2024 08:00,3,Steady work,Team,,3,Nice team,Team,,4,Good balance overall,Flexibility,

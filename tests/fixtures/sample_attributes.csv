@@ -1,0 +1,13 @@
+Employee ID,Department,Gender,Tenure Group
+E1,Sales,F,0-1
+E2,Sales,M,0-1
+E3,HR,F,1-3
+E4,HR,M,1-3
+E5,IT,F,3-5
+E6,IT,M,3-5
+E7,Sales,F,3-5
+E8,HR,M,0-1
+E9,IT,F,5+
+E10,Sales,M,5+
+E11,HR,F,3-5
+E12,IT,M,1-3
