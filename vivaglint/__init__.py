@@ -18,6 +18,11 @@ from vivaglint.import_ import (
     join_attributes,
 )
 
+from vivaglint.api import (
+    glint_setup,
+    read_glint_survey_api,
+)
+
 from vivaglint.reshape import (
     pivot_long,
     split_survey_data,
@@ -38,13 +43,16 @@ from vivaglint.hierarchy import (
     aggregate_by_manager,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     # import
     "read_glint_survey",
     "extract_questions",
     "join_attributes",
+    # api
+    "glint_setup",
+    "read_glint_survey_api",
     # reshape
     "pivot_long",
     "split_survey_data",

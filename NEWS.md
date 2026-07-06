@@ -1,5 +1,20 @@
 # vivaglint News
 
+## vivaglint 0.1.1
+
+### New features
+
+**API Import (Microsoft Graph)**
+- `glint_setup()` — configure Viva Glint API credentials via environment variables (Python analogue of R's `.Renviron`), with optional `save_to_env_file`
+- `read_glint_survey_api()` — export and import survey data directly from the Microsoft Graph beta API. Supports `cycle`, `survey`, and `daterange` modes; environment-variable fallbacks for every input; `save_zip_to` to persist the raw export zip; and `parse=False` to download without parsing. Single-CSV exports return a `GlintSurvey`; multi-CSV exports return a `dict` keyed by filename.
+
+### Improvements
+- `read_glint_survey()` now accepts configurable standard-column names (`first_name_col`, `last_name_col`, `email_col`, `status_col`, `completion_date_col`, `sent_date_col`); pass `None` to opt out of a column your export lacks.
+- New shared `build_glint_survey()` builder wraps in-memory DataFrames (used by both CSV and API import).
+- `validate_glint_structure()` now requires only the employee ID column and emits warnings (instead of hard errors) for missing optional standard columns, matching the current R package behaviour.
+- Added `pyproject.toml` for `pip install`, with `factor`, `plot`, `dev`, `docs`, and `all` extras. `requests` is now a core dependency; `factor_analyzer`, `matplotlib`, and `seaborn` are optional extras.
+- Added a `tests/` suite (utils, import, analysis smoke tests, and fully-mocked API tests) plus sample fixtures under `tests/fixtures/`.
+
 ## vivaglint 0.1.0
 
 Initial Python port of the Microsoft vivaglint R package.

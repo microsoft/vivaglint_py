@@ -19,11 +19,26 @@ survey.metadata    # dict
 |---|---|---|
 | `emp_id_col` | `str` | Employee ID column name |
 | `standard_columns` | `list[str]` | The 8 standard Glint column names |
+| `standard_column_map` | `dict` | Maps logical roles (`first_name`, `last_name`, `email`, `status`, `emp_id`, `manager_id`, `completion_date`, `sent_date`) to their configured column names (or `None`) |
 | `questions` | `DataFrame` | One row per question (see `extract_questions`) |
 | `n_respondents` | `int` | Total rows in `survey.data` |
 | `n_questions` | `int` | Number of survey questions |
-| `file_path` | `str` | Path originally supplied |
+| `file_path` | `str` or `None` | Path originally supplied (`None` for API imports) |
 | `attribute_cols` | `list[str]` | Populated by `join_attributes()` |
+
+---
+
+## `read_glint_survey_api()`
+
+Return type depends on the export and the `parse` flag:
+
+| Situation | Returns |
+|---|---|
+| Single-CSV export, `parse=True` (typical `cycle` mode) | `GlintSurvey` (same structure as `read_glint_survey()`) |
+| Multi-CSV export, `parse=True` (typical `survey` / `daterange` modes) | `dict[str, GlintSurvey \| DataFrame]` keyed by source CSV filename (without `.csv`). Entries that fit the standard schema are `GlintSurvey`; others are raw `DataFrame` (with a warning). |
+| `parse=False` | `str` — the filesystem path the raw export zip was written to (requires `save_zip_to`). |
+
+`glint_setup()` returns `True` on success and sets the `GLINT_*` environment variables.
 
 ---
 

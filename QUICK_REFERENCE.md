@@ -8,6 +8,13 @@
 | `extract_questions(data, emp_id_col=None)` | `DataFrame` | Parse column names into question metadata |
 | `join_attributes(survey, attribute_source, emp_id_col=None)` | `GlintSurvey` | Enrich survey with employee attributes |
 
+## API Functions (Microsoft Graph)
+
+| Function | Returns | Description |
+|---|---|---|
+| `glint_setup(tenant_id, client_id, client_secret, experience_name, save_to_env_file=False)` | `bool` | Configure Graph API credentials (via env vars) |
+| `read_glint_survey_api(survey_uuid=None, cycle_id=None, mode=None, ..., start_date=None, end_date=None, save_zip_to=None, parse=True, experience_name=None)` | `GlintSurvey` / `dict` / `str` | Export & import survey data via the Graph API (`cycle`/`survey`/`daterange` modes) |
+
 ## Reshape Functions
 
 | Function | Returns | Description |

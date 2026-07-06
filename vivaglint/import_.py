@@ -84,6 +84,12 @@ def _resolve_survey(
 def read_glint_survey(
     file_path: Union[str, Path],
     emp_id_col: str,
+    first_name_col: Optional[str] = "First Name",
+    last_name_col: Optional[str] = "Last Name",
+    email_col: Optional[str] = "Email",
+    status_col: Optional[str] = "Status",
+    completion_date_col: Optional[str] = "Survey Cycle Completion Date",
+    sent_date_col: Optional[str] = "Survey Cycle Sent Date",
     encoding: str = "UTF-8",
 ) -> GlintSurvey:
     """Read a Viva Glint survey export CSV file.
@@ -102,8 +108,14 @@ def read_glint_survey(
         Name of the employee ID column in this export (e.g. ``"Employee ID"``).
         Stored in ``survey.metadata["emp_id_col"]`` so downstream functions
         can resolve it automatically.
+    first_name_col, last_name_col, email_col, status_col:
+        Names of the standard respondent columns.  Override only if your export
+        uses different names.  Pass ``None`` to indicate the column is absent.
+    completion_date_col, sent_date_col:
+        Names of the two date columns.  Pass ``None`` to skip parsing/validating
+        one that your export does not include.
     encoding:
-        File encoding (default ``"utf-8"``).
+        File encoding (default ``"UTF-8"``).
 
     Returns
     -------
@@ -132,39 +144,112 @@ def read_glint_survey(
             "Please ensure the file is a valid CSV format."
         ) from exc
 
-    validate_glint_structure(data, emp_id_col)
+    return build_glint_survey(
+        data,
+        emp_id_col,
+        first_name_col=first_name_col,
+        last_name_col=last_name_col,
+        email_col=email_col,
+        status_col=status_col,
+        completion_date_col=completion_date_col,
+        sent_date_col=sent_date_col,
+        file_path=str(path),
+    )
+
+
+def build_glint_survey(
+    data: pd.DataFrame,
+    emp_id_col: str,
+    first_name_col: Optional[str] = "First Name",
+    last_name_col: Optional[str] = "Last Name",
+    email_col: Optional[str] = "Email",
+    status_col: Optional[str] = "Status",
+    completion_date_col: Optional[str] = "Survey Cycle Completion Date",
+    sent_date_col: Optional[str] = "Survey Cycle Sent Date",
+    manager_id_col: Optional[str] = "Manager ID",
+    file_path: Optional[str] = None,
+) -> GlintSurvey:
+    """Validate an in-memory survey DataFrame and wrap it as a GlintSurvey.
+
+    This is the shared builder used by both :func:`read_glint_survey` (CSV
+    import) and :func:`vivaglint.api.read_glint_survey_api` (API export). It
+    validates structure, parses any present date columns, extracts question
+    metadata, and assembles the ``metadata`` dict.
+
+    Ported from ``R/import.R::build_glint_survey``.
+
+    Parameters
+    ----------
+    data:
+        A DataFrame containing Viva Glint survey data.
+    emp_id_col:
+        Employee ID column name (required).
+    first_name_col, last_name_col, email_col, status_col, completion_date_col,
+    sent_date_col, manager_id_col:
+        Standard column names.  Pass ``None`` for any concept your export does
+        not include (e.g. ``sent_date_col=None`` for API exports).
+    file_path:
+        Source path to record in metadata, or ``None`` when built in memory.
+
+    Returns
+    -------
+    GlintSurvey
+    """
+    validate_glint_structure(
+        data,
+        emp_id_col,
+        first_name_col=first_name_col,
+        last_name_col=last_name_col,
+        email_col=email_col,
+        status_col=status_col,
+        completion_date_col=completion_date_col,
+        sent_date_col=sent_date_col,
+    )
 
     standard_cols = get_standard_columns(emp_id_col)
 
-    # Parse date columns — Glint exports dates as "DD-MM-YYYY HH:MM"
-    date_cols = ["Survey Cycle Completion Date", "Survey Cycle Sent Date"]
+    # Parse date columns — Glint exports dates as "DD-MM-YYYY HH:MM". Only the
+    # explicitly-named (non-None) date columns are parsed.
+    date_cols = [c for c in (completion_date_col, sent_date_col) if c]
     for col in date_cols:
         if col in data.columns:
-            try:
-                data[col] = pd.to_datetime(data[col], format="%d-%m-%Y %H:%M")
-            except Exception as exc:
-                raise ValueError(
-                    f"Error parsing date column '{col}': {exc}\n"
-                    "Expected format: DD-MM-YYYY HH:MM (e.g. '26-03-2024 09:34')"
-                ) from exc
+            parsed = pd.to_datetime(data[col], format="%d-%m-%Y %H:%M", errors="coerce")
+            # Fall back to a flexible parse for exports that use a different
+            # datetime format (e.g. some API exports) so we never hard-fail on
+            # an otherwise-valid column.
+            if parsed.isna().all() and data[col].notna().any():
+                parsed = pd.to_datetime(data[col], errors="coerce")
+            data[col] = parsed
 
     questions_df = extract_questions(data, emp_id_col)
 
+    standard_column_map = {
+        "first_name": first_name_col,
+        "last_name": last_name_col,
+        "email": email_col,
+        "status": status_col,
+        "emp_id": emp_id_col,
+        "manager_id": manager_id_col,
+        "completion_date": completion_date_col,
+        "sent_date": sent_date_col,
+    }
+
     metadata: dict = {
         "standard_columns": standard_cols,
+        "standard_column_map": standard_column_map,
         "emp_id_col": emp_id_col,
         "questions": questions_df,
         "n_respondents": len(data),
         "n_questions": len(questions_df),
-        "file_path": str(path),
+        "file_path": file_path,
         "attribute_cols": [],
     }
 
     logger.info(
-        "Loaded survey: %d respondents, %d questions from '%s'",
+        "Built survey: %d respondents, %d questions%s",
         len(data),
         len(questions_df),
-        path.name,
+        f" from '{Path(file_path).name}'" if file_path else "",
     )
 
     return GlintSurvey(data=data, metadata=metadata)
@@ -216,7 +301,13 @@ def extract_questions(
 
     standard_cols = set(get_standard_columns(emp_id_col))
     question_cols = [c for c in df.columns if c not in standard_cols]
-    question_stems = list(dict.fromkeys(get_question_stem(c) for c in question_cols))
+    # A column defines a question only if it carries one of the known suffixes
+    # (matches R/import.R::extract_questions, which derives stems from
+    # suffix-bearing columns). This prevents plain extra columns present in some
+    # exports (e.g. "Survey UUID", "Survey Cycle Title") from being mistaken for
+    # questions.
+    suffix_cols = [c for c in question_cols if c.endswith(_QUESTION_SUFFIXES)]
+    question_stems = list(dict.fromkeys(get_question_stem(c) for c in suffix_cols))
 
     rows = []
     for stem in question_stems:
@@ -351,12 +442,26 @@ def join_attributes(
 # Internal validation
 # ---------------------------------------------------------------------------
 
-def validate_glint_structure(data: pd.DataFrame, emp_id_col: str) -> None:
+def validate_glint_structure(
+    data: pd.DataFrame,
+    emp_id_col: str,
+    first_name_col: Optional[str] = "First Name",
+    last_name_col: Optional[str] = "Last Name",
+    email_col: Optional[str] = "Email",
+    status_col: Optional[str] = "Status",
+    completion_date_col: Optional[str] = "Survey Cycle Completion Date",
+    sent_date_col: Optional[str] = "Survey Cycle Sent Date",
+) -> None:
     """Validate that *data* conforms to the expected Viva Glint export structure.
 
-    Checks for required standard columns, at least one question column set,
-    complete question column sets (all four suffixes present), and no
-    orphaned suffix columns without their base.
+    Only the employee ID column is strictly required (matching the current
+    ``R/import.R::validate_glint_structure`` behaviour). Each other standard
+    column is optional: if a name is supplied but absent from *data*, a warning
+    is emitted describing the affected functionality; pass ``None`` to opt out
+    of a concept entirely (e.g. ``sent_date_col=None`` for API exports).
+
+    Also checks for at least one question column set, complete question column
+    sets (all four suffixes present), and no orphaned suffix columns.
 
     Ported from ``R/import.R::validate_glint_structure``.
 
@@ -365,34 +470,78 @@ def validate_glint_structure(data: pd.DataFrame, emp_id_col: str) -> None:
     data:
         DataFrame to validate.
     emp_id_col:
-        Name of the employee ID column.
+        Name of the employee ID column (required).
+    first_name_col, last_name_col, email_col, status_col, completion_date_col,
+    sent_date_col:
+        Names of the optional standard columns.
 
     Raises
     ------
     ValueError
-        With a descriptive message if any validation check fails.
+        With a descriptive message if a required check fails.
     """
-    required_cols = [
-        "First Name", "Last Name", "Email", "Status",
-        emp_id_col,
-        "Survey Cycle Completion Date",
-        "Survey Cycle Sent Date",
-    ]
-    missing_cols = [c for c in required_cols if c not in data.columns]
-    if missing_cols:
-        missing_str = ", ".join(f"'{c}'" for c in missing_cols)
-        required_str = "\n".join(f"  - {c}" for c in required_cols)
+    import warnings
+
+    # ---- Required: employee ID ---------------------------------------------
+    if emp_id_col is None or not str(emp_id_col):
+        raise ValueError("Column name must be provided for: Employee ID.")
+
+    if emp_id_col not in data.columns:
+        detected = "\n".join(f"  - {c}" for c in data.columns) or "  - (none)"
         raise ValueError(
-            f"Missing required standard column(s): {missing_str}\n\n"
-            "Your CSV file must contain all of the following standard Viva Glint columns:\n"
-            f"{required_str}\n\n"
-            "Please ensure you are using a complete Viva Glint survey export."
+            f"Missing required standard column: '{emp_id_col}'\n\n"
+            "Your CSV file must contain the employee ID column.\n\n"
+            f"Columns detected in the data frame:\n{detected}\n\n"
+            "Please ensure you are using a complete Viva Glint survey export, "
+            "or pass the correct emp_id_col argument."
         )
 
+    # ---- Optional standard columns: warn if a named column is missing ------
+    optional_name_map = {
+        "First Name": first_name_col,
+        "Last Name": last_name_col,
+        "Email": email_col,
+        "Status": status_col,
+        "Survey Cycle Completion Date": completion_date_col,
+        "Survey Cycle Sent Date": sent_date_col,
+    }
+    impact_map = {
+        "First Name": "aggregate_by_manager() manager_name output",
+        "Last Name": "aggregate_by_manager() manager_name output",
+        "Survey Cycle Completion Date": "analyze_attrition() (survey date calculations)",
+        "Survey Cycle Sent Date": "no current functions depend on it",
+        "Email": "no current functions depend on it",
+        "Status": "no current functions depend on it",
+    }
+    missing_optional = [
+        label
+        for label, name in optional_name_map.items()
+        if name and name not in data.columns
+    ]
+    if missing_optional:
+        lines = [
+            "Optional standard columns are missing. Related functionality may be limited:"
+        ]
+        for label in missing_optional:
+            lines.append(
+                f"  - {label} (expected '{optional_name_map[label]}'). "
+                f"Affects: {impact_map.get(label, 'some functionality may be limited')}."
+            )
+        warnings.warn("\n".join(lines), UserWarning, stacklevel=2)
+
+    # ---- Question column structure -----------------------------------------
     all_standard_cols = set(get_standard_columns(emp_id_col))
     question_cols = [c for c in data.columns if c not in all_standard_cols]
 
-    if not question_cols:
+    # A column defines a question only if it carries one of the known suffixes
+    # (matches R/import.R, which derives question stems from suffix-bearing
+    # columns). Plain extra columns that some exports include — e.g. the API
+    # export's "Survey UUID", "Survey Cycle Title", "Survey Cycle Creation Date"
+    # — are neither standard nor question columns and are simply ignored here.
+    suffix_cols = [c for c in question_cols if c.endswith(_QUESTION_SUFFIXES)]
+    question_stems = list(dict.fromkeys(get_question_stem(c) for c in suffix_cols))
+
+    if not question_stems:
         raise ValueError(
             "No question columns found in the data.\n\n"
             "A Viva Glint export should contain at least one question with its associated columns:\n"
@@ -403,12 +552,11 @@ def validate_glint_structure(data: pd.DataFrame, emp_id_col: str) -> None:
             "Please check that you are using a complete survey export file."
         )
 
-    question_stems = list(dict.fromkeys(get_question_stem(c) for c in question_cols))
     expected_suffixes = ["", "_COMMENT", "_COMMENT_TOPICS", "_SENSITIVE_COMMENT_FLAG"]
 
     error_messages: list[str] = []
 
-    # Check each stem for incomplete column sets
+    # Check each question (suffix-derived stem) for incomplete column sets
     incomplete_questions: list[str] = []
     for stem in question_stems:
         expected = [stem + sfx for sfx in expected_suffixes]
@@ -433,10 +581,9 @@ def validate_glint_structure(data: pd.DataFrame, emp_id_col: str) -> None:
 
     # Check for orphaned suffix columns without a base column
     orphaned: list[str] = []
-    for col in question_cols:
+    for col in suffix_cols:
         stem = get_question_stem(col)
-        # Only flag columns that ARE a suffix variant (not the base)
-        if col != stem and stem not in data.columns:
+        if stem not in data.columns:
             orphaned.append(col)
 
     if orphaned:
