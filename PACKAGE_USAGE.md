@@ -315,3 +315,18 @@ sphinx-build -b html man man/_build/html
 - **Manager comparisons**: `aggregate_by_manager` requires `min_group_size` compliance to protect small teams.
 - **Org tree**: `full_tree=True` in `aggregate_by_manager` uses a recursive traversal with cycle detection to handle imperfect org data.
 - **Group suppression**: `analyze_by_attributes` and `analyze_attrition` return an empty DataFrame (with correct schema) when no groups meet the `min_group_size` threshold.
+
+## Advanced survey experiments (Python-specific)
+
+Install the optional `advanced` extra for `run_model_experiment(data, config)`.
+It supports analyst-approved Random Forest, gradient boosting, dummy/regularized
+baselines, Extra Trees challengers, and centered numeric-item SVD (PCA-style).
+This API has no R equivalent and does not change existing analysis APIs.
+
+The calling application must obtain explicit experiment/tuning consent, validate
+the configuration, enforce single-use project holdouts, and protect the returned
+`private` split indices. Never publish inputs, row predictions, or fitted models.
+Inspect `tests/test_modeling.py` for executable synthetic configuration examples.
+No employee-level attrition prediction, individual risk ranking, or causal
+claims are supported. Fold variation is not a confidence interval. Deadlines are
+checked between fits, not by interrupting native estimator code.

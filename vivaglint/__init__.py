@@ -42,6 +42,7 @@ from vivaglint.analyze import (
 from vivaglint.hierarchy import (
     aggregate_by_manager,
 )
+from vivaglint.modeling import run_model_experiment
 
 __version__ = "0.1.1"
 
@@ -67,4 +68,6 @@ __all__ = [
     "search_comments",
     # hierarchy
     "aggregate_by_manager",
+    # optional advanced extra; sklearn is imported only during execution
+    "run_model_experiment",
 ]
